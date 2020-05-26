@@ -1,111 +1,169 @@
 import 'package:flutter/material.dart';
+import 'package:labfive/SplashScreen.dart';
+import 'API/CatAPI.dart';
+import 'models/Cats.dart';
+import 'images.dart';
+import 'breeds.dart';
+import 'Favourites.dart';
 
 void main() => runApp(MyApp());
 
 class MyApp extends StatelessWidget {
-  // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Flutter Demo',
       theme: ThemeData(
-        // This is the theme of your application.
-        //
-        // Try running your application with "flutter run". You'll see the
-        // application has a blue toolbar. Then, without quitting the app, try
-        // changing the primarySwatch below to Colors.green and then invoke
-        // "hot reload" (press "r" in the console where you ran "flutter run",
-        // or simply save your changes to "hot reload" in a Flutter IDE).
-        // Notice that the counter didn't reset back to zero; the application
-        // is not restarted.
         primarySwatch: Colors.blue,
       ),
-      home: MyHomePage(title: 'Flutter Demo Home Page'),
+      home: SplashScreen(),
     );
   }
 }
 
 class MyHomePage extends StatefulWidget {
-  MyHomePage({Key key, this.title}) : super(key: key);
 
-  // This widget is the home page of your application. It is stateful, meaning
-  // that it has a State object (defined below) that contains fields that affect
-  // how it looks.
+  MyHomePage({Key key, this.br}) : super(key: key);
 
-  // This class is the configuration for the state. It holds the values (in this
-  // case the title) provided by the parent (in this case the App widget) and
-  // used by the build method of the State. Fields in a Widget subclass are
-  // always marked "final".
-
-  final String title;
-
+  final BreedList br;
+  
   @override
   _MyHomePageState createState() => _MyHomePageState();
 }
 
 class _MyHomePageState extends State<MyHomePage> {
-  int _counter = 0;
+  List<CatList> cr = new List<CatList>();
+  int _index = 0;
+  ImagesList images;
+  bool onstart = true;
+  bool onstart1 = true;
+  bool onstart2 = true;
+  BreedList br;
 
-  void _incrementCounter() {
-    setState(() {
-      // This call to setState tells the Flutter framework that something has
-      // changed in this State, which causes it to rerun the build method below
-      // so that the display can reflect the updated values. If we changed
-      // _counter without calling setState(), then the build method would not be
-      // called again, and so nothing would appear to happen.
-      _counter++;
-    });
+
+ 
+  @override
+  void initState() {
+    setCatList();
+    futureImages();
+    getBreeds();
+    super.initState();
   }
+
+void setCatList() async{
+  for(var i in widget.br.breeds){
+    List<dynamic> tmp = await CatAPI().getCatList(i.id);
+    cr.add(CatList.fromJson(tmp));
+  }
+}
+
+Widget futureImages(){
+  return FutureBuilder(
+    future: onstart? getImages(): null,
+    builder: (BuildContext context, AsyncSnapshot snapshot){
+      if(snapshot.hasData){
+        onstart = false;
+        return ShowImagesList(images: images.images);
+      }
+      if(!onstart)
+        return ShowImagesList();
+      return Center(child: CircularProgressIndicator(),);
+    }
+   
+  );
+}
+
+Widget futureFavourites(){
+  return FutureBuilder(
+    future: onstart2? getFavourite(): null,
+    builder: (BuildContext context, AsyncSnapshot snapshot){
+      if(!snapshot.hasData){
+        onstart2 = false;
+        return Favourites();
+      }
+      if(!onstart2)
+        return Favourites();
+      return Center(child: CircularProgressIndicator(),);
+    }
+   
+  );
+}
+
+
+Widget futureBreeds(){
+  return FutureBuilder(
+    future: onstart1? getBreeds(): null,
+    builder: (BuildContext context, AsyncSnapshot snapshot){
+      if(snapshot.hasData){
+        onstart1 = false;
+        return Breeds(br: br);
+      }
+      if(!onstart1)
+        return Breeds();
+      return Center(child: CircularProgressIndicator(),);
+    }
+   
+  );
+}
+
+
+  Future getFavourite()async{
+    List<dynamic> list = await CatAPI().getFavour();
+    for(var e in list){
+      print(e.toString());
+    }
+    return true;
+  }
+  Future getBreeds()async{
+    List<dynamic> list = await CatAPI().getCatBreeds();
+    br = BreedList.fromJson(list);
+    return br;
+  }
+
+  Future getImages()async{
+    List<dynamic> list = await CatAPI().getImages();
+    images = ImagesList.fromJson(list);
+    return images;
+  }
+
+
 
   @override
   Widget build(BuildContext context) {
-    // This method is rerun every time setState is called, for instance as done
-    // by the _incrementCounter method above.
-    //
-    // The Flutter framework has been optimized to make rerunning build methods
-    // fast, so that you can just rebuild anything that needs updating rather
-    // than having to individually change instances of widgets.
     return Scaffold(
       appBar: AppBar(
-        // Here we take the value from the MyHomePage object that was created by
-        // the App.build method, and use it to set our appbar title.
-        title: Text(widget.title),
+        title: Text('Cats'),
       ),
-      body: Center(
-        // Center is a layout widget. It takes a single child and positions it
-        // in the middle of the parent.
-        child: Column(
-          // Column is also a layout widget. It takes a list of children and
-          // arranges them vertically. By default, it sizes itself to fit its
-          // children horizontally, and tries to be as tall as its parent.
-          //
-          // Invoke "debug painting" (press "p" in the console, choose the
-          // "Toggle Debug Paint" action from the Flutter Inspector in Android
-          // Studio, or the "Toggle Debug Paint" command in Visual Studio Code)
-          // to see the wireframe for each widget.
-          //
-          // Column has various properties to control how it sizes itself and
-          // how it positions its children. Here we use mainAxisAlignment to
-          // center the children vertically; the main axis here is the vertical
-          // axis because Columns are vertical (the cross axis would be
-          // horizontal).
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: <Widget>[
-            Text(
-              'You have pushed the button this many times:',
-            ),
-            Text(
-              '$_counter',
-              style: Theme.of(context).textTheme.display1,
-            ),
-          ],
-        ),
+      body: IndexedStack(
+        index: _index,
+        children: <Widget>[
+          futureImages(),
+          futureFavourites(),
+          futureBreeds(),
+        ],
+      ), 
+      bottomNavigationBar: BottomNavigationBar(
+        backgroundColor: Colors.white,
+        unselectedItemColor: Colors.grey,
+        currentIndex: _index,
+        selectedItemColor: Colors.blue,
+        type: BottomNavigationBarType.fixed,
+        items: [
+          BottomNavigationBarItem(
+            icon: Icon(Icons.image),
+            title: Text('Images'),
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.star),
+            title: Text('Favourites'),
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.library_books),
+            title: Text('Breeds')
+          )
+        ],
+        onTap: (value) => setState(()=>_index=value),
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _incrementCounter,
-        tooltip: 'Increment',
-        child: Icon(Icons.add),
-      ), // This trailing comma makes auto-formatting nicer for build methods.
     );
   }
 }
